@@ -1,0 +1,19 @@
+{
+    "calva.replConnectSequences": [
+        {
+            "projectType": "Leiningen",
+            "name": "Clojure http-kit Examples (Jack-in)",
+            "autoSelectForJackIn": true,
+            "projectRootPath": ["."],
+            "cljsType": "none",
+            "menuSelections": {
+                "leinProfiles": [
+                    "dev"
+                ]
+            }
+        },
+    ],
+    "calva.jackInEnv": {
+        "JAVA_TOOL_OPTIONS": "-Djavax.net.debug=ssl,handshake,verbose"
+    }
+}

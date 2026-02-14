@@ -1,0 +1,25 @@
+[
+  {
+    "httpRequest": {
+      "path": "/health"
+    },
+    "httpResponse": {
+      "statusCode": 200
+    }
+  },
+  {
+    "httpRequest": {
+      "method": "GET",
+      "path": "/address"
+    },
+    "httpResponse": {
+      "statusCode": 200,
+      "headers": {
+        "content-type": [
+          "application/json"
+        ]
+      },
+      "body": "{ \"street\" : \"42, Lower Tower St\", \"city\": \"Birmingham\" }"
+    }
+  }
+]
