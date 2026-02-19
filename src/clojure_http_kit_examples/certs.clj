@@ -7,6 +7,7 @@
    [java.security KeyPair PublicKey Security]
    [java.security KeyPairGenerator SecureRandom]
    [java.util Calendar Date]
+   [javax.naming.ldap LdapName Rdn]
    [javax.security.auth.x500 X500Principal]
    [javax.security.cert X509Certificate]
    [org.bouncycastle.asn1.x500 X500Name]
@@ -57,6 +58,15 @@
         ^X509Certificate cert (.getCertificate (JcaX509CertificateConverter.) (.build builder signer))]
     {:keypair kp :certificate cert}))
 
+(s/defn get-rdn-value :- s/Str
+  [rdn-type           :- s/Str
+   principal          :- X500Principal]
+  (let [ldap-name (LdapName. (.getName principal))]
+    (some (fn [^Rdn rdn]
+            (when (= rdn-type (.getType rdn))
+              (.getValue rdn)))
+          (.getRdns ldap-name))))
+
 (s/defn signed-cert :- {s/Keyword s/Any}
   [root-ca :- {s/Keyword s/Any}
    subject :- s/Str
@@ -65,6 +75,7 @@
         now (Date.)
         until (days-from-now days)
         subj (X500Principal. subject)
+        domain-name (get-rdn-value "CN" subj)
         builder (JcaX509v3CertificateBuilder.
                  ^X500Principal (.getSubjectX500Principal (:certificate root-ca))
                  ^BigInteger (BigInteger/valueOf (System/currentTimeMillis))
@@ -82,7 +93,7 @@
         _ (.addExtension builder Extension/extendedKeyUsage false
                          (ExtendedKeyUsage. (into-array KeyPurposeId [KeyPurposeId/id_kp_serverAuth])))
         _ (.addExtension builder Extension/subjectAlternativeName false
-                         (GeneralNames. (into-array GeneralName [(GeneralName. GeneralName/dNSName "api.localhost")])))
+                         (GeneralNames. (into-array GeneralName [(GeneralName. GeneralName/dNSName domain-name)])))
         signer (.build (JcaContentSignerBuilder. "SHA256withRSA") (.getPrivate (:keypair root-ca)))
         ^X509Certificate cert (.getCertificate (JcaX509CertificateConverter.) (.build builder signer))]
     {:keypair kp :certificate cert}))
