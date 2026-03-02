@@ -11,7 +11,7 @@ nginx() {
     --name nginx \
     -p 80:80 \
     -p 443:443 \
-    -v "${SCRIPT_PATH}/resources/nginx.conf:/etc/nginx/nginx.conf:ro" \
+    -v "${SCRIPT_PATH}/resources/nginx_tls.conf:/etc/nginx/nginx.conf:ro" \
     -v /tmp/key.pem:/tmp/key.pem:ro \
     -v /tmp/certificate.pem:/tmp/certificate.pem:ro \
     nginx:latest

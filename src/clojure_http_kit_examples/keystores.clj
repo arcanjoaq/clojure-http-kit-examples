@@ -16,3 +16,13 @@
       (let [cert ^X509Certificate (.generateCertificate cf fis)]
         (.setCertificateEntry ks "cert" cert)))
     ks))
+
+(s/defn pkcs12->keystore :- KeyStore
+  [pkcs12-path :- s/Str
+   password    :- s/Str]
+  (let [keystore (KeyStore/getInstance "PKCS12")
+        pass-chars (when password
+                     (char-array password))]
+    (with-open [fis (FileInputStream. pkcs12-path)]
+      (.load keystore fis pass-chars))
+    keystore))
