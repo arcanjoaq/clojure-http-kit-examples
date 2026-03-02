@@ -4,7 +4,11 @@
   (:import
    [java.io FileOutputStream FileWriter]
    [java.math BigInteger]
-   [java.security KeyPair PublicKey Security]
+   [java.security
+    KeyPair
+    KeyStore
+    PublicKey
+    Security]
    [java.security KeyPairGenerator SecureRandom]
    [java.util Calendar Date]
    [javax.naming.ldap LdapName Rdn]
@@ -67,7 +71,7 @@
               (.getValue rdn)))
           (.getRdns ldap-name))))
 
-(s/defn signed-cert :- {s/Keyword s/Any}
+(s/defn server-cert :- {s/Keyword s/Any}
   [root-ca :- {s/Keyword s/Any}
    subject :- s/Str
    days    :- s/Int]
@@ -98,6 +102,25 @@
         ^X509Certificate cert (.getCertificate (JcaX509CertificateConverter.) (.build builder signer))]
     {:keypair kp :certificate cert}))
 
+(s/defn client-cert :- {s/Keyword s/Any}
+  [root-ca :- {s/Keyword s/Any}
+   subject :- s/Str
+   days    :- s/Int]
+  (let [kp (gen-keypair 2048)
+        now (Date.)
+        until (days-from-now days)
+        subj (X500Principal. subject)
+        builder (JcaX509v3CertificateBuilder.
+                 ^X500Principal (.getSubjectX500Principal (:certificate root-ca))
+                 ^BigInteger (BigInteger/valueOf (System/currentTimeMillis))
+                 ^Date now
+                 ^Date until
+                 ^X500Principal subj
+                 ^PublicKey (.getPublic kp))
+        signer (.build (JcaContentSignerBuilder. "SHA256withRSA") (.getPrivate (:keypair root-ca)))
+        ^X509Certificate cert (.getCertificate (JcaX509CertificateConverter.) (.build builder signer))]
+    {:keypair kp :certificate cert}))
+
 (s/defn save-key-to-der
   [kp   :- KeyPair
    path :- s/Str]
@@ -121,3 +144,40 @@
    path :- s/Str]
   (with-open [writer (JcaPEMWriter. (FileWriter. path))]
     (.writeObject writer cert)))
+
+(s/defn create-keystore :- KeyStore
+  [key                  :- KeyPair
+   cert
+   password             :- s/Str]
+  (let [ks (KeyStore/getInstance "PKCS12")]
+    (.load ks nil nil)
+    (.setKeyEntry ks "client" (.getPrivate key) (char-array password) (into-array [cert]))
+    ks))
+
+(s/defn save-keystore
+  [ks       :- KeyStore
+   path     :- s/Str
+   password :- s/Str]
+  (with-open [fos (FileOutputStream. path)]
+    (.store ks fos (char-array password))))
+
+(comment
+  (def root (self-signed-root-ca "C=BR, ST=Sao Paulo, L=Sao Paulo, O=My Root CA, OU=IT, CN=api.*" 365))
+
+  (def server (server-cert root "C=BR, ST=Sao Paulo, L=Sao Paulo, O=My Org, OU=IT, CN=api.localhost" 825))
+
+  (def client (client-cert root "C=BR, ST=Sao Paulo, L=Sao Paulo, O=My Org, OU=IT, CN=mTLS" 825))
+
+  (def keystore (create-keystore (:keypair client) (:certificate client) "changeit"))
+
+  (save-key-to-der (:keypair root) "/tmp/root-ca-key.der")
+  (save-cert-to-der (:certificate root) "/tmp/root-ca.der")
+  (save-key-to-pem (:keypair root) "/tmp/root-ca-key.pem")
+  (save-cert-to-pem (:certificate root) "/tmp/root-ca.pem")
+
+  (save-key-to-der (:keypair server) "/tmp/key.der")
+  (save-cert-to-der (:certificate server) "/tmp/certificate.der")
+  (save-key-to-pem (:keypair server) "/tmp/key.pem")
+  (save-cert-to-pem (:certificate server) "/tmp/certificate.pem")
+
+  (save-keystore keystore "/tmp/keystore.jks" "changeit"))
